@@ -1,0 +1,197 @@
+---
+title: "Lecture 6: R Functions"
+author: "Sathvik Guntha (A:17927716)"
+format: pdf
+toc: True
+---
+
+## Background
+
+All functions in R gave at least 3 things: 
+
+- A **name** that we used to call the function
+- One or more input **arguments**
+- The **body** the lines of R code that do the work
+
+## First Function
+Let's write a silly wee function called `add()` to add some numbers (the input arguments)
+
+```{r}
+add <- function(x,y){
+  x + y
+}
+```
+
+```{r}
+add (10, 1)
+```
+
+```{r}
+add (c(10,10,10), c(100,10,10)) #implicit vectorization
+add(1, 1) #Fails due to missing argument
+```
+AddNEW now add(x, y = 1):
+```{R}
+addNew <- function(x ,y = 1){
+  x + y
+}
+```
+
+When the y value is not defined it assumes the detailt valuye of 1, but when we do provide it a value, then it overrides the default value within the argument.
+```{R}
+addNew(100) #returns 101
+```
+
+## Second Function
+Let's try something interesting: Make a sequence generating tool..
+
+The `sample()` function is an inbuilt function in R, that has 2 arguments and randomly samples some input. X is the sample space, size is the sample size, and replace (T/F) is used to derive repeats.
+
+```{R}
+sample(1:10, size = 4)
+
+```
+
+>Q. Generate 9 random numbers from the input vector 1:10: Cannot do 12, as the sample size cannot be larger than the population.
+
+```{R}
+sample(1:10, size = 9)
+
+```
+
+>Q. Generate 12 random numbers from the input vector 1:10: 
+Cannot do 12, as the sample size cannot be larger than the population.
+
+```{R}
+sample(1:10, size=12, replace = TRUE)
+
+```
+
+
+
+
+
+>Q Write a code for `Sample()` function that generates nucleotide sequences of length 6:
+
+```{R}
+sample(c('A','C','G','T'), size = 6, replace = TRUE)
+```
+
+
+>Q Write a first function `generate_dna()` that returns the user a specified length DNA sequence:
+
+```{R}
+generate_dna <- function(len){
+  sample(c('A','C','G','T'), size = len, replace = TRUE)
+}
+
+```
+
+```{R}
+generate_dna(100)
+```
+
+
+> **Key-Points**
+Each function in R looks fundamentally the same it has the following structure:
+
+```
+name <- function(args){
+  function body
+}
+```
+
+>Functions can have multiple inputs, some of which are **required** and some **optional**. With optional arguments having a set default value.
+
+
+
+> Q. Modify and prove our `generate_dna()` function to return it's generated sequence in a more standard form: like "AGTAGTA" rather than vector
+
+```{R}
+generate_dna <- function(len, fasta = TRUE){
+  ans <- sample(c('A','C','G','T'), size = len, replace = TRUE)
+  
+  if (fasta){
+    cat("Single-element vector output")
+    ans <- paste(ans, collapse = "")
+  }else{
+    cat("Multi-element vector output")
+  }
+  
+  return (ans)
+}
+
+generate_dna(10)
+generate_dna(10, FALSE)
+
+```
+
+
+
+The `paste()` function is used to join up or stick together elements in a vectorized structure.
+
+```{R}
+paste(c("Sathvik", "Barry"), "loves R", sep = "")
+```
+
+
+Flow control is where the R brain goes into your code: Conditionals!
+```{R}
+good_mood <- FALSE
+
+if (good_mood){
+  cat("Great!")
+} else{
+  cat("Bummer!")
+}
+
+```
+
+## A Protein generating function:
+
+>Q. Write a function that generates a user- specified length protein sequence.
+
+```{R}
+generate_protein <- function(len){
+  ans <- sample(c("A","C","D","E","F","G","H","I","K","L","M","N","P","Q","R","S","T","V","W","Y"),
+         size = len, replace = TRUE)
+  return(cat(ans, sep= ""))
+}
+
+generate_protein(14)
+
+```
+
+>Q. Use that function to generate a random protein sequence between length 6 and 12.
+
+```{R}
+random_protein <- function(){
+  randomN = sample (6:12, size = 1)
+  sample(c("A","C","D","E","F","G","H","I","K","L","M","N","P","Q","R","S","T","V","W","Y"),
+         size = randomN, replace = TRUE)
+}
+
+random_protein()
+```
+
+```{R}
+generate_protein(6)
+generate_protein(7)
+generate_protein(8)
+generate_protein(9)
+generate_protein(10)
+generate_protein(11)
+generate_protein(12)
+```
+>Q. Are any of your sequences unique i.e not found anywhere in nature?
+
+**YES**, when I ran BLASTP on (Len = 12)FKMRQHDWMISS, there's lower query cover; therefore they're unique. Though (6-9 are not unique.)
+
+```{R}
+for (i in 6:12){
+  cat(i, "\n")
+  cat(generate_protein(i), "\n")
+}
+
+```
+

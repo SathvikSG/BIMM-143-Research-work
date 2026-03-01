@@ -1,0 +1,336 @@
+---
+title: "Class 13_Lab"
+author: "Sathvik S Guntha"
+format: pdf
+TOC: True
+---
+
+##Bioconductor setup
+
+```{R}
+#install.packages("BiocManager")
+#BiocManager::install()
+```
+
+```{R}
+# For this class we will need DESeq2:
+#BiocManager::install("DESeq2")
+```
+
+```{R}
+library(BiocManager)
+library(DESeq2)
+```
+
+##Import countData and colData
+
+```{R}
+counts <- read.csv("Airway Scaled Counts.csv", row.names=1)
+metadata <-  read.csv("Airway Metadata.csv")
+```
+
+```{R}
+head(counts)
+```
+
+```{R}
+head(metadata)
+```
+
+>Q1. How many genes are in this dataset:
+
+```{R}
+nrow(counts)
+```
+
+>Q2. How many ‘control’ cell lines do we have?
+
+```{R}
+control_metadata <- metadata[metadata$dex == "control",]
+nrow(control_metadata)
+```
+
+```{R}
+control <- metadata[metadata[,"dex"]=="control",]
+control.counts <- counts[ ,control$id]
+control.mean <- rowSums( control.counts )/4 
+head(control.mean)
+```
+>Q3. How would you make the above code in either approach more robust? 
+Is there a function that could help here?
+
+Since we're having to hardcode the total number of datavalues, we could use
+the rowMeans function. It directly adapts for the total number of samples. We 
+could also attempt to divide by ncol(control.counts) which would accurately count
+the total samples. (Doesn't remain 4 for all sample sets)
+
+
+>Q4. Follow the same procedure for the treated samples (i.e. calculate the mean 
+per gene across drug treated samples and assign to a labeled vector 
+called treated.mean)
+
+```{R}
+treated <- metadata[metadata[,"dex"]=="treated",]
+treated.counts <- counts[ ,treated$id]
+treated.mean <- rowSums(treated.counts) / ncol(treated.counts)
+```
+
+```{R}
+meancounts <- data.frame(control.mean, treated.mean)
+colSums(meancounts)
+```
+>Q5.
+
+```{R}
+plot(control.mean, treated.mean,
+     xlab = "Control Mean",
+     ylab = "Treated Mean",
+     main = "Treated vs Control Mean Counts",)
+```
+
+>Q5(b)
+
+```{R}
+library(ggplot2)
+ggplot(meancounts, aes(control.mean, treated.mean)) + geom_point(alpha = 0.5)
+```
+
+>Q6.
+
+```{R}
+plot(control.mean, treated.mean,
+     xlab = "Control Mean",
+     ylab = "Treated Mean",
+     main = "Treated vs Control Mean Counts",
+     log = "xy")
+```
+
+```{R}
+meancounts$log2fc <- log2(meancounts[,"treated.mean"]/meancounts[,"control.mean"])
+head(meancounts)
+```
+
+```{R}
+zero.vals <- which(meancounts[,1:2]==0, arr.ind=TRUE)
+
+to.rm <- unique(zero.vals[,1])
+mycounts <- meancounts[-to.rm,]
+head(mycounts)
+```
+
+>Q7.
+
+The arr.ind causes the which() function to return both the row and column indices.
+Since meancounts[,1:2] is a matrix with two columns (control.mean and treated.mean), 
+this allows us to see exactly which genes (rows) and which conditions (columns) 
+contain zero expression values.
+
+While calling unique() ensures we don't count any row twice if it has zero entries 
+on both the samples.
+
+>Q8.
+
+```{R}
+up.ind <- mycounts$log2fc > 2
+down.ind <- mycounts$log2fc < (-2)
+```
+
+>Q9.
+
+```{R}
+sum(up.ind)
+sum(down.ind)
+```
+
+>Q10.
+
+No, these results can not be fully trusted, as the analysis is based only 
+on fold change and does not consider the statistical significance.
+
+##Setting up for DeSeq
+
+```{R}
+library(DESeq2)
+citation("DESeq2")
+```
+
+>Importing the data
+
+```{R}
+dds <- DESeqDataSetFromMatrix(countData=counts, 
+                              colData=metadata, 
+                              design=~dex)
+dds
+```
+
+
+##PCA
+
+```{R}
+vsd <- vst(dds, blind = FALSE)
+plotPCA(vsd, intgroup = c("dex"))
+```
+
+
+```{R}
+pcaData <- plotPCA(vsd, intgroup=c("dex"), returnData=TRUE)
+head(pcaData)
+```
+```{R}
+# Calculate percent variance per PC for the plot axis labels
+percentVar <- round(100 * attr(pcaData, "percentVar"))
+
+ggplot(pcaData) +
+  aes(x = PC1, y = PC2, color = dex) +
+  geom_point(size =3) +
+  xlab(paste0("PC1: ", percentVar[1], "% variance")) +
+  ylab(paste0("PC2: ", percentVar[2], "% variance")) +
+  coord_fixed() +
+  theme_bw()
+```
+
+## DeSeq analysis
+
+```{R}
+dds <- DESeq(dds)
+res <- results(dds)
+res
+```
+
+```{R}
+summary(res)
+```
+
+```{R}
+res05 <- results(dds, alpha=0.05)
+summary(res05)
+```
+
+##Adding annotation data
+
+```{R}
+library("AnnotationDbi")
+library("org.Hs.eg.db")
+```
+
+
+```{R}
+columns(org.Hs.eg.db)
+```
+
+
+```{R}
+res$symbol <- mapIds(org.Hs.eg.db,
+                     keys=row.names(res), # Our genenames
+                     keytype="ENSEMBL",        # The format of our genenames
+                     column="SYMBOL",          # The new format we want to add
+                     multiVals="first")
+```
+
+```{R}
+head(res)
+```
+
+>Q11. Run the mapIds() function two more times to add the Entrez ID and 
+UniProt accession and GENENAME as new columns called res$entrez, res$uniprot and res$genename.
+
+```{R}
+res$entrez <- mapIds(org.Hs.eg.db,
+                     keys=row.names(res),
+                     column="ENTREZID",
+                     keytype="ENSEMBL",
+                     multiVals="first")
+
+res$uniprot <- mapIds(org.Hs.eg.db,
+                     keys=row.names(res),
+                     column="UNIPROT",
+                     keytype="ENSEMBL",
+                     multiVals="first")
+
+res$genename <- mapIds(org.Hs.eg.db,
+                     keys=row.names(res),
+                     column="GENENAME",
+                     keytype="ENSEMBL",
+                     multiVals="first")
+
+head(res)
+```
+
+```{R}
+ord <- order( res$padj )
+#View(res[ord,])
+head(res[ord,])
+```
+
+```{R}
+write.csv(res[ord,], "deseq_results.csv")
+```
+
+##Data visualization
+
+```{R}
+plot( res$log2FoldChange,  -log(res$padj), 
+      xlab="Log2(FoldChange)",
+      ylab="-Log(P-value)")
+```
+
+```{R}
+plot( res$log2FoldChange,  -log(res$padj), 
+ ylab="-Log(P-value)", xlab="Log2(FoldChange)")
+
+# Add some cut-off lines
+abline(v=c(-2,2), col="darkgray", lty=2)
+abline(h=-log(0.05), col="darkgray", lty=2)
+```
+
+```{R}
+# Setup our custom point color vector 
+mycols <- rep("gray", nrow(res))
+mycols[ abs(res$log2FoldChange) > 2 ]  <- "red" 
+
+inds <- (res$padj < 0.01) & (abs(res$log2FoldChange) > 2 )
+mycols[ inds ] <- "blue"
+
+# Volcano plot with custom colors 
+plot( res$log2FoldChange,  -log(res$padj), 
+ col=mycols, ylab="-Log(P-value)", xlab="Log2(FoldChange)" )
+
+# Cut-off lines
+abline(v=c(-2,2), col="gray", lty=2)
+abline(h=-log(0.1), col="gray", lty=2)
+```
+
+```{R}
+library(EnhancedVolcano)
+
+x <- as.data.frame(res)
+
+EnhancedVolcano(x,
+    lab = x$symbol,
+    x = 'log2FoldChange',
+    y = 'pvalue')
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

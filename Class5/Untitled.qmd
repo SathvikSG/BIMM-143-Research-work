@@ -1,0 +1,7 @@
+---
+title: "Class 10 Lab"
+author: "Sathvik S Guntha"
+format: html
+---
+
+## Class 10 Laboratory 

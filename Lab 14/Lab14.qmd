@@ -1,0 +1,230 @@
+---
+title: "Lab14"
+author: "Sathvik S Guntha"
+format: pdf
+---
+
+## Differential Expression analysis
+
+```{R}
+library(DESeq2)
+```
+
+```{R}
+metaFile <- "~/Desktop/BIMM_143/Lab 14/GSE37704 Metadata.csv"
+countFile <- "~/Desktop/BIMM_143/Lab 14/Feature Counts GSE37704.csv"
+
+# Import metadata and take a peek
+colData = read.csv(metaFile, row.names=1)
+head(colData)
+```
+
+```{R}
+# Import countdata
+countData = read.csv(countFile, row.names=1)
+
+head(countData)
+```
+
+>Q1.
+
+```{R}
+countData <- as.matrix(countData[, colnames(countData) != "length"])
+head(countData)
+```
+
+>Q2.
+
+```{R}
+# Filter count data where you have 0 read count across all samples.
+countData = countData[rowSums(countData) > 0, ]
+head(countData)
+```
+##Running DeSeq
+```{R}
+dds = DESeqDataSetFromMatrix(countData = countData,
+                             colData = colData,
+                             design = ~ condition)
+
+dds = DESeq(dds)
+
+dds
+```
+
+```{R}
+res = results(dds)
+summary(res)
+```
+
+##Volcano plot
+```{R}
+library(ggplot2)
+
+ggplot(res) +
+  aes(x = log2FoldChange,
+      y = -log10(padj)) +
+  geom_point()
+```
+
+```{R}
+library(ggplot2)
+
+# Make a color vector for all genes
+mycols <- rep("gray", nrow(res))
+
+# Color blue the genes with fold change above 2
+mycols[ abs(res$log2FoldChange) > 2 ] <- "blue"
+
+# Color gray those with adjusted p-value more than 0.01
+mycols[ res$padj > 0.01 ] <- "gray"
+
+ggplot(res) +
+  aes(x = log2FoldChange,
+      y = -log10(padj)) +
+  geom_point(col = mycols) +
+  xlab("Log2(FoldChange)") +
+  ylab("-Log(P-value)") +
+  geom_vline(xintercept = c(-2, 2)) +
+  geom_hline(yintercept = -log10(0.01))
+```
+
+>Q3.
+
+```{R}
+library("AnnotationDbi")
+library("org.Hs.eg.db")
+
+columns(org.Hs.eg.db)
+
+res$symbol = mapIds(org.Hs.eg.db,
+                    keys = row.names(res), 
+                    keytype = "ENSEMBL",
+                    column = "SYMBOL",
+                    multiVals = "first")
+
+res$entrez = mapIds(org.Hs.eg.db,
+                    keys = row.names(res),
+                    keytype = "ENSEMBL",
+                    column = "ENTREZID",
+                    multiVals = "first")
+
+res$name = mapIds(org.Hs.eg.db,
+                  keys = row.names(res),
+                  keytype = "ENSEMBL",
+                  column = "GENENAME",
+                  multiVals = "first")
+
+head(res, 10)
+```
+
+>Q4.
+
+```{R}
+res = res[order(res$padj), ]
+write.csv(res, file = "deseq_results.csv")
+```
+
+
+##Pathway Analysis
+```{R}
+library(pathview)
+library(gage)
+library(gageData)
+
+data(kegg.sets.hs)
+data(sigmet.idx.hs)
+
+# Focus on signaling and metabolic pathways only
+kegg.sets.hs = kegg.sets.hs[sigmet.idx.hs]
+
+# Examine the first 3 pathways
+head(kegg.sets.hs, 3)
+
+```
+
+
+```{R}
+foldchanges = res$log2FoldChange
+names(foldchanges) = res$entrez
+head(foldchanges)
+```
+
+```{R}
+# Get the results
+keggres = gage(foldchanges, gsets=kegg.sets.hs)
+```
+
+
+```{R}
+attributes(keggres)
+```
+
+
+```{R}
+# Look at the first few down (less) pathways
+head(keggres$less)
+```
+
+
+```{R}
+pathview(gene.data=foldchanges, pathway.id="hsa04110")
+```
+
+```{R}
+# A different PDF based output of the same data
+pathview(gene.data=foldchanges, pathway.id="hsa04110", kegg.native=FALSE)
+```
+```{R}
+## Focus on top 5 upregulated pathways here for demo purposes only
+keggrespathways <- rownames(keggres$greater)[1:5]
+
+# Extract the 8 character long IDs part of each string
+keggresids = substr(keggrespathways, start=1, stop=8)
+keggresids
+```
+
+```{R}
+pathview(gene.data=foldchanges, pathway.id=keggresids, species="hsa")
+```
+
+>Q.
+
+```{R}
+keggrespathways_down <- rownames(keggres$less)[1:5]
+keggresids_down <- substr(keggrespathways_down, 1, 8)
+pathview(gene.data = foldchanges,
+         pathway.id = keggresids_down,
+         species = "hsa")
+```
+
+##Gene oncology
+
+```{R}
+data(go.sets.hs)
+data(go.subs.hs)
+
+# Focus on Biological Process subset of GO
+gobpsets = go.sets.hs[go.subs.hs$BP]
+
+gobpres = gage(foldchanges, gsets=gobpsets)
+
+lapply(gobpres, head)
+```
+
+
+## Reactome Analysis
+```{R}
+sig_genes <- res[res$padj <= 0.05 & !is.na(res$padj), "symbol"]
+print(paste("Total number of significant genes:", length(sig_genes)))
+```
+
+```{R}
+write.table(sig_genes, file="significant_genes.txt", row.names=FALSE, col.names=FALSE, quote=FALSE)
+
+```
+
+
+>Q. 
+
+The most significant pathway was related to the Cell Cycle / Mitotic Cell 
+Cycle, whih was consistent with strong enrichment as seen in the KEGG analysis

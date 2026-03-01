@@ -1,0 +1,70 @@
+---
+title: "Homework_6"
+author: "Sathvik S Guntha"
+format: pdf
+---
+#Part A
+```{R}
+library(bio3d)
+
+partA <- function(df, col){
+  df <- data.frame(a=1:10, b=seq(200,400,length=10),c=11:20, d=NA)
+  df[[col]] <- (df[[col]] - min(df[[col]])) /
+               (max(df[[col]]) - min(df[[col]]))
+  
+  return (df)
+  
+}
+  df <- partA(df, "a")
+  df <- partA(df, "b")
+  df <- partA(df, "c")
+  df <- partA(df, "d")
+
+  df
+```
+
+#Part B
+```{R}
+library(bio3d)
+s1 <- read.pdb("4AKE") # kinase with drug
+s2 <- read.pdb("1AKE") # kinase no drug
+s3 <- read.pdb("1E4Y") # kinase with drug
+
+partB <- function(protein){
+  proteinChain <- trim.pdb(protein, chain = "A", elety = "CA")
+  b <- proteinChain$atom$b
+  
+  plotb3(b, sse = proteinChain, typ = "l", ylab = "Bfactor")
+  
+  return (b)
+}
+
+s1.b <- partB(s1)
+
+s2.b <- partB(s2)
+
+s3.b <- partB(s3)
+```
+
+#Questions:
+1) Read.pbd according to the R doc returns a list that contains information 
+about atom information, coordinates, B-factors, and meta data (taken from 
+protein data bank). 
+
+2) trim.pdb() returns a subset of PDB structures, such as a specific chain 
+and atom type (e.g. chain A and C alpha atoms).
+
+3) sse = NULL
+
+4) A plot that shows all the B-factor trends together, or a clustering 
+dendrogram that would make it easier  to compare the proteins directly.
+
+5) Proteins that appear closer together in a clustering 
+dendrogram have more similar B-factor patterns. This similarity can be measured 
+using distance calculations like rbind, dist.
+
+6) Attached above
+The code can be generalized by writing a function that takes a PDB ID as input, 
+and performs the same analysis steps,
+
+

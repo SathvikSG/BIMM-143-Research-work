@@ -1,0 +1,59 @@
+# RNA-seq Data Simulator
+# Creates realistic count data for testing the analysis pipeline
+
+set.seed(42)  # For reproducibility
+
+# Parameters
+n_genes <- 15000  # Total number of genes
+n_samples_per_group <- 6  # 6 controls + 6 PD
+n_de_genes <- 1834  # Number of differentially expressed genes
+
+# Create gene names
+gene_names <- paste0("GENE_", 1:n_genes)
+
+# Create sample names
+sample_names <- c(
+  paste0("Control_", 1:n_samples_per_group),
+  paste0("PD_", 1:n_samples_per_group)
+)
+
+# Simulate base expression levels (negative binomial distribution)
+base_means <- rnbinom(n_genes, mu = 100, size = 5)
+
+# Create count matrix
+counts <- matrix(0, nrow = n_genes, ncol = n_samples_per_group * 2)
+rownames(counts) <- gene_names
+colnames(counts) <- sample_names
+
+# Fill in control samples (first 6 columns)
+for (i in 1:n_samples_per_group) {
+  counts[, i] <- rnbinom(n_genes, mu = base_means, size = 10)
+}
+
+# Select differentially expressed genes
+de_genes_idx <- sample(1:n_genes, n_de_genes)
+
+# Create fold changes for DE genes (half up, half down)
+fold_changes <- rep(1, n_genes)
+n_up <- n_de_genes / 2
+fold_changes[de_genes_idx[1:n_up]] <- runif(n_up, 2, 4)  # Upregulated
+fold_changes[de_genes_idx[(n_up+1):n_de_genes]] <- runif(n_de_genes - n_up, 0.25, 0.5)  # Downregulated
+
+# Fill in PD samples (last 6 columns) with fold changes
+for (i in 1:n_samples_per_group) {
+  adjusted_means <- base_means * fold_changes
+  counts[, n_samples_per_group + i] <- rnbinom(n_genes, mu = adjusted_means, size = 10)
+}
+
+# Convert to data frame
+counts_df <- as.data.frame(counts)
+counts_df <- cbind(gene_id = rownames(counts_df), counts_df)
+
+# Save to CSV
+write.csv(counts_df, "~/RNA_seq_analysis/data/raw_counts.csv", row.names = FALSE)
+
+cat("\nSimulated RNA-seq data created successfully!\n")
+cat("Location: ~/RNA_seq_analysis/data/raw_counts.csv\n")
+cat("Dimensions:", nrow(counts_df), "genes x", ncol(counts_df)-1, "samples\n")
+cat("Simulated DE genes:", n_de_genes, "\n")
+cat("\nYou can now run your analysis script!\n")

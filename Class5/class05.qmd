@@ -1,0 +1,81 @@
+---
+title: "Class05"
+author: "Sathvik S Guntha"
+format: pdf
+---
+
+#Lab 4 
+#For the installation of GGplot we need to do:
+install.packages("ggplot2")
+
+
+Anytime I need to use this package I need
+```{R}
+library(ggplot2)
+```
+
+
+View(cars)
+
+A quick base R plot- this is not ggplot.
+```{R}
+plot(cars)
+```
+
+
+#First ggplot (data + aesthetic + geom)
+
+```{R}
+ggplot(data = cars) + aes(x = speed ,y = dist) + geom_point()
+```
+
+
+```{R}
+p <- ggplot(data = cars) + aes(x = speed ,y = dist) + geom_point()
+
+#Add a line geom with geom_line()
+p + geom_line() 
+
+p + geom_smooth(method = "lm")
+```
+
+
+
+```{R}
+url <- "https://bioboot.github.io/bimm143_S20/class-material/up_down_expression.txt"
+genes <- read.delim(url)
+head(genes)
+```
+
+Analysis of the dataset:
+```{R}
+g <- ggplot(data = genes) + aes(x= Condition1, y = Condition2, col = State) + geom_point()
+
+#Number of genes
+nrow(genes)
+
+#Names of columns
+colnames(genes)
+
+#Number of columans
+ncol(genes)
+
+#Summary of the State column in genes:
+table(genes$State) 
+
+#upregulated genes are 127
+
+#We look at the up section for the value for it.
+
+#Fraction of up genes:
+round((table(genes$State) / nrow(genes)) * 100, 2) 
+```
+
+Color to ggplot
+```{R}
+g + scale_color_manual(values = c("blue", "grey", "red"))
+
+g+ labs(title = "Gene Expression Changes", x = "Control (No Drug)") + theme_bw()
+
+```
+
